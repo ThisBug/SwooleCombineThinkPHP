@@ -1,17 +1,17 @@
 ﻿## 简介
 
-基于ThinkPHP3.2结合Swoole,快速嵌入TP框架,兼容TP5
-需要注意异步必须在Cli下进行,Cli下TP默认读取的配置文件为:Application/Common/Conf/config.php
-有相关疑问请查阅官方文档:https://wiki.swoole.com
-从未使用过swoole建议先看此新手教程:https://github.com/LinkedDestiny/swoole-doc
+* 基于ThinkPHP3.2结合Swoole,快速嵌入TP框架,兼容TP5
+* 需要注意异步必须在Cli下进行,Cli下TP默认读取的配置文件为:Application/Common/Conf/config.php
+* 有相关疑问请查阅官方文档:https://wiki.swoole.com
+* 从未使用过swoole建议先看此新手教程:https://github.com/LinkedDestiny/swoole-doc
 
-##注意
-不要在代码中执行sleep以及其他睡眠函数，这样会导致整个进程阻塞
-exit/die是危险的，会导致Worker进程退出
-可通过register_shutdown_function来捕获致命错误，在进程异常退出时做一些清理工作，具体参考 /wiki/page/305.html
-PHP代码中如果有异常抛出，必须在回调函数中进行try/catch捕获异常，否则会导致工作进程退出
-不支持set_exception_handler，必须使用try/catch方式处理异常
-Worker进程不得共用同一个Redis或MySQL等网络服务客户端，Redis/MySQL创建连接的相关代码可以放到onWorkerStart回调函数中，具体参考 /wiki/page/325.html
+## 注意
+* 不要在代码中执行sleep以及其他睡眠函数，这样会导致整个进程阻塞
+* exit/die是危险的，会导致Worker进程退出
+* 可通过register_shutdown_function来捕获致命错误，在进程异常退出时做一些清理工作，具体参考 /wiki/page/305.html
+* PHP代码中如果有异常抛出，必须在回调函数中进行try/catch捕获异常，否则会导致工作进程退出
+* 不支持set_exception_handler，必须使用try/catch方式处理异常
+* Worker进程不得共用同一个Redis或MySQL等网络服务客户端，Redis/MySQL创建连接的相关代码可以放到onWorkerStart回调函数中，具体参考 /wiki/page/325.html
 
 ## 全面的WEB开发特性支持
 
