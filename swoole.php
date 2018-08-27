@@ -41,6 +41,9 @@ define('SWOOLE_PATH', __DIR__);
 define('SWOOLE_TASK_PID_PATH', SWOOLE_PATH . DIRECTORY_SEPARATOR . 'Swoole' . DIRECTORY_SEPARATOR . 'tmp' . DIRECTORY_SEPARATOR . 'swoole-task.pid');
 define('SWOOLE_TASK_NAME_PRE', 'swooleServ');
 
+//加载composer需要的扩展
+require './vendor/autoload.php';
+
 /**
  * 加载 swoole server
  */
