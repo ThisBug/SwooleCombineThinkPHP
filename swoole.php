@@ -22,6 +22,12 @@ if (!extension_loaded('pdo_mysql')) {
     exit('PDO_MYSQL extension is not installed' . PHP_EOL);
 }
 /**
+ * 检测 Swoole
+ */
+if (!extension_loaded('swoole')) {
+    exit('swoole extension is not installed' . PHP_EOL);
+}
+/**
  * 检查exec 函数是否启用
  */
 if (!function_exists('exec')) {
@@ -49,7 +55,8 @@ require './vendor/autoload.php';
  */
 include SWOOLE_PATH . DIRECTORY_SEPARATOR . 'Swoole' . DIRECTORY_SEPARATOR . 'SwooleServer.php';
 
-function portBind($port) {
+function portBind($port)
+{
     $ret = [];
     $cmd = "lsof -i :{$port}|awk '$1 != \"COMMAND\"  {print $1, $2, $9}'";
     exec($cmd, $out);
@@ -58,8 +65,8 @@ function portBind($port) {
             $a = explode(' ', $v);
             list($ip, $p) = explode(':', $a[2]);
             $ret[$a[1]] = [
-                'cmd' => $a[0],
-                'ip' => $ip,
+                'cmd'  => $a[0],
+                'ip'   => $ip,
                 'port' => $p,
             ];
         }
@@ -68,9 +75,10 @@ function portBind($port) {
     return $ret;
 }
 
-function servStart($host, $port, $daemon, $name) {
+function servStart($host, $port, $daemon, $name)
+{
     echo "正在启动 swoole-task 服务" . PHP_EOL;
-    if (!is_writable(dirname(SWOOLE_TASK_PID_PATH))) {
+    if (!is_writable(dirname(SWOOLE_TASK_PID_PATH)) && !mkdir(dirname(SWOOLE_TASK_PID_PATH), 0755, true)) {
         exit("swoole-task-pid文件需要目录的写入权限:" . dirname(SWOOLE_TASK_PID_PATH) . PHP_EOL);
     }
     if (file_exists(SWOOLE_TASK_PID_PATH)) {
@@ -95,7 +103,7 @@ function servStart($host, $port, $daemon, $name) {
     unset($_SERVER['argv']);
     $_SERVER['argc'] = 0;
     echo "启动 swoole-task 服务成功" . PHP_EOL;
-    $server = new SwooleServer('127.0.0.1', 9501);
+    $server = new SwooleServer('0.0.0.0', 9501);
     $server->run();
     //确保服务器启动后swoole-task-pid文件必须生成
     /*if (!empty(portBind($port)) && !file_exists(SWOOLE_TASK_PID_PATH)) {
@@ -103,12 +111,13 @@ function servStart($host, $port, $daemon, $name) {
     }*/
 }
 
-function servStop($host, $port, $isRestart = false) {
+function servStop($host, $port, $isRestart = false)
+{
     echo "正在停止 swoole-task 服务" . PHP_EOL;
     if (!file_exists(SWOOLE_TASK_PID_PATH)) {
         exit('swoole-task-pid文件:' . SWOOLE_TASK_PID_PATH . '不存在' . PHP_EOL);
     }
-    $pid = explode("\n", file_get_contents(SWOOLE_TASK_PID_PATH));
+    $pid  = explode("\n", file_get_contents(SWOOLE_TASK_PID_PATH));
     $bind = portBind($port);
     if (empty($bind) || !isset($bind[$pid[0]])) {
         exit("指定端口占用进程不存在 port:{$port}, pid:{$pid[0]}" . PHP_EOL);
@@ -117,7 +126,7 @@ function servStop($host, $port, $isRestart = false) {
     exec($cmd);
     do {
         $out = [];
-        $c = "ps ax | awk '{ print $1 }' | grep -e \"^{$pid[0]}$\"";
+        $c   = "ps ax | awk '{ print $1 }' | grep -e \"^{$pid[0]}$\"";
         exec($c, $out);
         if (empty($out)) {
             break;
@@ -135,15 +144,16 @@ function servStop($host, $port, $isRestart = false) {
     }
 }
 
-function servReload($host, $port, $isRestart = false) {
+function servReload($host, $port, $isRestart = false)
+{
     echo "正在平滑重启 swoole-task 服务" . PHP_EOL;
     try {
         $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-        $ret = $client->connect($host, $port);
+        $ret    = $client->connect($host, $port);
         if (empty($ret)) {
             exit("{$host}:{$port} swoole-task服务不存在或者已经关闭" . PHP_EOL);
         } else {
-            $client->send(json_encode(array('action' => 'reload')));
+            $client->send(json_encode(['action' => 'reload']));
         }
         $msg = "执行命令reload成功，端口 {$host}:{$port} 进程重启" . PHP_EOL;
         if ($isRestart) {
@@ -156,15 +166,16 @@ function servReload($host, $port, $isRestart = false) {
     }
 }
 
-function servClose($host, $port, $isRestart = false) {
+function servClose($host, $port, $isRestart = false)
+{
     echo "正在关闭 swoole-task 服务" . PHP_EOL;
     try {
         $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-        $ret = $client->connect($host, $port);
+        $ret    = $client->connect($host, $port);
         if (empty($ret)) {
             exit("{$host}:{$port} swoole-task服务不存在或者已经关闭" . PHP_EOL);
         } else {
-            $client->send(json_encode(array('action' => 'close')));
+            $client->send(json_encode(['action' => 'close']));
         }
         //确保停止服务后swoole-task-pid文件被删除
         if (file_exists(SWOOLE_TASK_PID_PATH)) {
@@ -181,31 +192,32 @@ function servClose($host, $port, $isRestart = false) {
     }
 }
 
-function servStatus($host, $port) {
+function servStatus($host, $port)
+{
     echo "swoole-task {$host}:{$port} 运行状态" . PHP_EOL;
-    $pid = explode("\n", file_get_contents(SWOOLE_TASK_PID_PATH));
+    $pid  = explode("\n", file_get_contents(SWOOLE_TASK_PID_PATH));
     $bind = portBind($port);
     if (empty($bind) || !isset($bind[$pid[0]])) {
         exit("指定端口占用进程不存在 port:{$port}, pid:{$pid[0]}" . PHP_EOL);
     }
     $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    $ret = $client->connect($host, $port);
+    $ret    = $client->connect($host, $port);
     if (empty($ret)) {
         exit("{$host}:{$port} swoole-task服务不存在或者已经停止" . PHP_EOL);
     } else {
-        $client->send(json_encode(array('action' => 'status')));
+        $client->send(json_encode(['action' => 'status']));
         $out = $client->recv();
-        $a = json_decode($out);
-		$b = array(
-            'start_time' => '服务器启动的时间',
-            'connection_num' => '当前连接的数量',
-            'accept_count' => '接受的连接数量',
-            'close_count' => '关闭的连接数量',
-            'tasking_num' => '当前正在排队的任务数',
-            'request_count' => '请求的连接数量',
+        $a   = json_decode($out);
+        $b   = [
+            'start_time'           => '服务器启动的时间',
+            'connection_num'       => '当前连接的数量',
+            'accept_count'         => '接受的连接数量',
+            'close_count'          => '关闭的连接数量',
+            'tasking_num'          => '当前正在排队的任务数',
+            'request_count'        => '请求的连接数量',
             'worker_request_count' => 'worker连接数量',
-            'task_process_num' => '任务进程数量'
-        );
+            'task_process_num'     => '任务进程数量'
+        ];
         foreach ($a as $k1 => $v1) {
             if ($k1 == 'start_time') {
                 $v1 = date("Y-m-d H:i:s", $v1);
@@ -216,7 +228,8 @@ function servStatus($host, $port) {
     exit();
 }
 
-function servList() {
+function servList()
+{
     echo "本机运行的swoole-task服务进程" . PHP_EOL;
     $cmd = "ps aux|grep " . SWOOLE_TASK_NAME_PRE . "|grep -v grep|awk '{print $1, $2, $6, $8, $9, $11}'";
     exec($cmd, $out);
@@ -231,7 +244,7 @@ function servList() {
 }
 
 //可执行命令
-$cmds = [
+$cmds      = [
     'start',
     'stop',
     'restart',
@@ -241,7 +254,7 @@ $cmds = [
     'list',
 ];
 $shortopts = "dDh:p:n:";
-$longopts = [
+$longopts  = [
     'help',
     'daemon',
     'nondaemon',
@@ -249,7 +262,7 @@ $longopts = [
     'port:',
     'name:',
 ];
-$opts = getopt($shortopts, $longopts);
+$opts      = getopt($shortopts, $longopts);
 
 if (isset($opts['help']) || $argc < 2) {
     echo <<<HELP
@@ -261,8 +274,8 @@ if (isset($opts['help']) || $argc < 2) {
     --help  显示本帮助说明
     -d, --daemon    指定此参数,以守护进程模式运行,不指定则读取配置文件值
     -D, --nondaemon 指定此参数，以非守护进程模式运行,不指定则读取配置文件值
-    -h, --host  指定监听ip,例如 php swoole.php -h127.0.0.1
-    -p, --port  指定监听端口port， 例如 php swoole.php -h127.0.0.1 -p9520
+    -h, --host  指定监听ip,例如 php swoole.php -h0.0.0.0
+    -p, --port  指定监听端口port， 例如 php swoole.php -h0.0.0.0 -p9520
     -n, --name  指定服务进程名称，例如 php swoole.php -ntest start, 则进程名称为SWOOLE_TASK_NAME_PRE-name
 启动swoole-task 如果不指定 host和port，读取默认配置
 强制关闭swoole-task 必须指定port,没有指定host，关闭的监听端口是  *:port,指定了host，关闭 host:port端口
@@ -299,8 +312,8 @@ if (!in_array($cmd, $cmds)) {
     exit("输入命令有误 : {$cmd}, 请查看帮助文档\n");
 }
 
-//监听ip 127.0.0.1，空读取配置文件
-$host = '127.0.0.1';
+//监听ip 0.0.0.0，空读取配置文件
+$host = '0.0.0.0';
 if (!empty($opts['h'])) {
     $host = $opts['h'];
     if (!filter_var($host, FILTER_VALIDATE_IP)) {
@@ -381,7 +394,7 @@ if ($cmd == 'reload') {
 //查看swoole-task服务状态
 if ($cmd == 'status') {
     if (empty($host)) {
-        $host = '127.0.0.1';
+        $host = '0.0.0.0';
     }
     if (empty($port)) {
         exit("查看swoole-task服务必须指定port(host不指定默认使用127.0.0.1)" . PHP_EOL);
@@ -392,5 +405,3 @@ if ($cmd == 'status') {
 if ($cmd == 'list') {
     servList();
 }
-
-
